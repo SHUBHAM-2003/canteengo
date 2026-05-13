@@ -1,43 +1,43 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { serviceClient } from '@/lib/serverClient'
 import { createServerSupabase } from '@/lib/serverSupabase'
 
 export async function GET() {
-  const { data } = await supabase.from('tables').select('*').order('table_number')
-  return NextResponse.json(data || [])
+  try {
+    const { data } = await serviceClient.from('tables').select('*').order('table_number')
+    return NextResponse.json(data || [])
+  } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }) }
 }
 
 export async function POST(req) {
-  const sb = await createServerSupabase()
-  const { data: { user } } = await sb.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  
-  const body = await req.json()
-  const { data, error } = await sb.from('tables').insert(body).select().single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+  try {
+    const sb = await createServerSupabase()
+    const { data: { user } } = await sb.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    
+    const body = await req.json()
+    const { data, error } = await serviceClient.from('tables').insert(body).select().single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json(data)
+  } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }) }
 }
 
 export async function PUT(req) {
-  const sb = await createServerSupabase()
-  const { data: { user } } = await sb.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  
-  const body = await req.json()
-  const { id, ...updates } = body
-  const { data, error } = await sb.from('tables').update(updates).eq('id', id).select().single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+  try {
+    const body = await req.json()
+    const { id, ...updates } = body
+    const { data, error } = await serviceClient.from('tables').update(updates).eq('id', id).select().single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json(data)
+  } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }) }
 }
 
 export async function DELETE(req) {
-  const sb = await createServerSupabase()
-  const { data: { user } } = await sb.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  
-  const { searchParams } = new URL(req.url)
-  const id = searchParams.get('id')
-  const { error } = await sb.from('tables').delete().eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ success: true })
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get('id')
+    const { error } = await serviceClient.from('tables').delete().eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ success: true })
+  } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }) }
 }
