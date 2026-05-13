@@ -5,21 +5,34 @@ const db = () => getServiceClient()
 
 export async function POST(req) {
   try {
-    const formData = await req.formData()
-    const email = formData.get('email')
-    const password = formData.get('password')
+    const body = await req.json()
+    const { email, password } = body
+    
+    if (!email || !password) {
+      return NextResponse.json({ error: 'Email and password required' }, { status: 400 })
+    }
     
     const { data, error } = await db().auth.signInWithPassword({ email, password })
     
     if (error) {
-      return NextResponse.redirect(new URL('/login?error=Invalid+credentials', req.url))
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
     
-    const { data: profile } = await db().from('profiles').select('role').eq('id', data.user.id).single()
+    const { data: profile } = await db()
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .single()
     
-    const redirectUrl = profile?.role === 'manager' ? '/manager' : '/menu'
-    return NextResponse.redirect(new URL(redirectUrl, req.url))
+    return NextResponse.json({
+      user: { id: data.user.id, email: data.user.email },
+      role: profile?.role || 'student',
+      session: {
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token
+      }
+    })
   } catch (err) {
-    return NextResponse.redirect(new URL('/login?error=Server+error', req.url))
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

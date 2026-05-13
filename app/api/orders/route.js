@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { getServiceClient } from '@/lib/serverClient'
-import { createServerSupabase } from '@/lib/serverSupabase'
 
 const db = () => getServiceClient()
 
@@ -13,18 +12,15 @@ export async function GET(req) {
     if (searchParams.get('limit')) query = query.limit(parseInt(searchParams.get('limit')))
     const { data } = await query
     return NextResponse.json(data || [])
-  } catch (err) { return NextResponse.json({ error: err.message, data: [] }, { status: 500 }) }
+  } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }) }
 }
 
 export async function POST(req) {
   try {
-    const sb = await createServerSupabase()
-    const { data: { user } } = await sb.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Not authenticated. Please login first.' }, { status: 401 })
-    
     const body = await req.json()
     const today = new Date().toISOString().split('T')[0]
     
+    // Get the current sequence number
     const { data: seq } = await db().from('daily_sequences').select('last_sequence').eq('date', today).single()
     let newSeq = 1
     if (seq) {
@@ -41,7 +37,7 @@ export async function POST(req) {
     const { data, error } = await db().from('orders').insert({
       order_number: orderNumber,
       table_number: body.table_number || 'Walk-in',
-      user_id: user.id,
+      user_id: null, // Will be populated if auth is available
       items: body.items || [],
       total_amount: body.total_amount || 0,
       payment_mode: body.payment_mode || 'counter',

@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { browserSupabase as supabase } from '@/lib/browserSupabase'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
@@ -15,18 +14,34 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
-    
-    if (authError) {
-      setError(authError.message)
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+      const data = await res.json()
+      
+      if (!res.ok) {
+        setError(data.error || 'Login failed')
+        setLoading(false)
+        return
+      }
+      
+      // Store session in sessionStorage so other pages can use it
+      if (data.session) {
+        document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=86400; samesite=lax`
+        document.cookie = `sb-refresh-token=${data.session.refresh_token}; path=/; max-age=86400; samesite=lax`
+      }
+      
+      if (data.role === 'manager') {
+        router.push('/manager')
+      } else {
+        router.push('/menu')
+      }
+    } catch (err) {
+      setError('Connection error. Please try again.')
       setLoading(false)
-      return
-    }
-    
-    if (data?.user) {
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
-      if (profile?.role === 'manager') router.push('/manager')
-      else router.push('/menu')
     }
   }
 
@@ -49,15 +64,13 @@ export default function LoginPage() {
           </button>
         </form>
         <div style={{ marginTop: 28, paddingTop: 24, borderTop: '1px solid #e8e8e8', textAlign: 'center' }}>
-          <p style={{ fontSize: 12, color: '#636E72', marginBottom: 12 }}>Demo Accounts (click to autofill)</p>
+          <p style={{ fontSize: 12, color: '#636E72', marginBottom: 12 }}>Demo Accounts</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <button onClick={() => { setEmail('student@demo.com'); setPassword('demo123') }} style={{ background: '#f8f9fa', padding: '12px 16px', borderRadius: 12, border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 14, display: 'flex', justifyContent: 'space-between' }}>
-              <span>👨‍🎓 Student</span>
-              <span style={{ color: '#FF6B35', fontWeight: 500 }}>student@demo.com</span>
+            <button onClick={() => { setEmail('student@demo.com'); setPassword('demo123') }} style={{ background: '#f8f9fa', padding: '12px 16px', borderRadius: 12, border: 'none', cursor: 'pointer', fontSize: 14, display: 'flex', justifyContent: 'space-between' }}>
+              <span>👨‍🎓 Student</span><span style={{ color: '#FF6B35', fontWeight: 500, fontSize: 13 }}>student@demo.com</span>
             </button>
-            <button onClick={() => { setEmail('manager@demo.com'); setPassword('demo123') }} style={{ background: '#f8f9fa', padding: '12px 16px', borderRadius: 12, border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 14, display: 'flex', justifyContent: 'space-between' }}>
-              <span>👔 Manager</span>
-              <span style={{ color: '#FF6B35', fontWeight: 500 }}>manager@demo.com</span>
+            <button onClick={() => { setEmail('manager@demo.com'); setPassword('demo123') }} style={{ background: '#f8f9fa', padding: '12px 16px', borderRadius: 12, border: 'none', cursor: 'pointer', fontSize: 14, display: 'flex', justifyContent: 'space-between' }}>
+              <span>👔 Manager</span><span style={{ color: '#FF6B35', fontWeight: 500, fontSize: 13 }}>manager@demo.com</span>
             </button>
           </div>
         </div>
