@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
-import { serviceClient } from '@/lib/serverClient'
+import { getServiceClient } from '@/lib/serverClient'
 import { createServerSupabase } from '@/lib/serverSupabase'
+
+const db = () => getServiceClient()
 
 export async function GET() {
   try {
-    const { data } = await serviceClient.from('tables').select('*').order('table_number')
+    const { data } = await db().from('tables').select('*').order('table_number')
     return NextResponse.json(data || [])
   } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }) }
 }
@@ -14,9 +16,8 @@ export async function POST(req) {
     const sb = await createServerSupabase()
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    
     const body = await req.json()
-    const { data, error } = await serviceClient.from('tables').insert(body).select().single()
+    const { data, error } = await db().from('tables').insert(body).select().single()
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json(data)
   } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }) }
@@ -26,7 +27,7 @@ export async function PUT(req) {
   try {
     const body = await req.json()
     const { id, ...updates } = body
-    const { data, error } = await serviceClient.from('tables').update(updates).eq('id', id).select().single()
+    const { data, error } = await db().from('tables').update(updates).eq('id', id).select().single()
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json(data)
   } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }) }
@@ -36,7 +37,7 @@ export async function DELETE(req) {
   try {
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
-    const { error } = await serviceClient.from('tables').delete().eq('id', id)
+    const { error } = await db().from('tables').delete().eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ success: true })
   } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }) }

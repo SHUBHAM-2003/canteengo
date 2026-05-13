@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server'
-import { serviceClient } from '@/lib/serverClient'
+import { getServiceClient } from '@/lib/serverClient'
+
+const db = () => getServiceClient()
 
 export async function GET() {
   try {
     const today = new Date().toISOString().split('T')[0]
     
-    const { data: todayOrders } = await serviceClient.from('orders').select('*').gte('created_at', today)
-    const { data: pendingOrders } = await serviceClient.from('orders').select('*').in('order_status', ['placed', 'preparing'])
-    const { data: menuItems } = await serviceClient.from('menu_items').select('*').eq('is_available', false)
+    const { data: todayOrders } = await db().from('orders').select('*').gte('created_at', today)
+    const { data: pendingOrders } = await db().from('orders').select('*').in('order_status', ['placed', 'preparing'])
+    const { data: menuItems } = await db().from('menu_items').select('*').eq('is_available', false)
     
     const orders = todayOrders || []
     const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0)

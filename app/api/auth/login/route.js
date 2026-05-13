@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
-import { serviceClient } from '@/lib/serverClient'
+import { getServiceClient } from '@/lib/serverClient'
+
+const db = () => getServiceClient()
 
 export async function POST(req) {
   try {
@@ -7,17 +9,13 @@ export async function POST(req) {
     const email = formData.get('email')
     const password = formData.get('password')
     
-    const { data, error } = await serviceClient.auth.signInWithPassword({ email, password })
+    const { data, error } = await db().auth.signInWithPassword({ email, password })
     
     if (error) {
       return NextResponse.redirect(new URL('/login?error=Invalid+credentials', req.url))
     }
     
-    const { data: profile } = await serviceClient
-      .from('profiles')
-      .select('role')
-      .eq('id', data.user.id)
-      .single()
+    const { data: profile } = await db().from('profiles').select('role').eq('id', data.user.id).single()
     
     const redirectUrl = profile?.role === 'manager' ? '/manager' : '/menu'
     return NextResponse.redirect(new URL(redirectUrl, req.url))
