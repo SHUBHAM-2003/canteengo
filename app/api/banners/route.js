@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createServerSupabase } from '@/lib/serverSupabase'
+import { supabase } from '@/lib/supabase'
 
 export async function GET() {
-  const supabase = await createServerSupabase()
   const { data } = await supabase.from('banners').select('*').order('created_at', { ascending: false })
   return NextResponse.json(data || [])
 }
 
 export async function POST(req) {
-  const supabase = await createServerSupabase()
   const body = await req.json()
   const { data, error } = await supabase.from('banners').insert(body).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
@@ -16,7 +14,6 @@ export async function POST(req) {
 }
 
 export async function PUT(req) {
-  const supabase = await createServerSupabase()
   const body = await req.json()
   const { id, ...updates } = body
   const { data, error } = await supabase.from('banners').update(updates).eq('id', id).select().single()

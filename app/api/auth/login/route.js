@@ -1,45 +1,29 @@
 import { NextResponse } from 'next/server'
-import { createServerSupabase } from '@/lib/serverSupabase'
+import { createRouteHandlerSupabase } from '@/lib/serverSupabase'
 
 export async function POST(req) {
   const formData = await req.formData()
   const email = formData.get('email')
   const password = formData.get('password')
   
-  const supabase = await createServerSupabase()
+  const { supabase, response } = await createRouteHandlerSupabase(req)
   
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
   
   if (error) {
-    return NextResponse.redirect(new URL('/login?error=Invalid credentials', req.url))
+    return NextResponse.redirect(new URL('/login?error=Invalid+credentials', req.url))
   }
   
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', data.user.id)
-    .single()
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single()
   
-  if (profile?.role === 'manager') {
-    return NextResponse.redirect(new URL('/manager', req.url))
-  }
+  const redirectUrl = profile?.role === 'manager' ? '/manager' : '/menu'
+  const redirectRes = NextResponse.redirect(new URL(redirectUrl, req.url))
   
-  return NextResponse.redirect(new URL('/menu', req.url))
-}
-
-export async function GET(req) {
-  const supabase = await createServerSupabase()
   const { data: { session } } = await supabase.auth.getSession()
-  
-  if (!session) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  if (session?.access_token) {
+    redirectRes.cookies.set('sb-access-token', session.access_token, { path: '/', httpOnly: true, sameSite: 'lax' })
+    redirectRes.cookies.set('sb-refresh-token', session.refresh_token, { path: '/', httpOnly: true, sameSite: 'lax' })
   }
   
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', session.user.id)
-    .single()
-  
-  return NextResponse.json({ user: session.user, profile })
+  return redirectRes
 }

@@ -11,9 +11,6 @@ export async function GET(req, { params }) {
 
 export async function PUT(req, { params }) {
   const supabase = await createServerSupabase()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  
   const body = await req.json()
   const { id } = params
   const { data, error } = await supabase.from('orders').update(body).eq('id', id).select().single()

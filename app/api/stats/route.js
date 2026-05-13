@@ -1,18 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createServerSupabase } from '@/lib/serverSupabase'
+import { supabase } from '@/lib/supabase'
 
 export async function GET() {
-  const supabase = await createServerSupabase()
   const today = new Date().toISOString().split('T')[0]
   
-  const { data: todayOrders } = await supabase
-    .from('orders').select('*').gte('created_at', today)
-  
-  const { data: pendingOrders } = await supabase
-    .from('orders').select('*').in('order_status', ['placed', 'preparing'])
-  
-  const { data: menuItems } = await supabase
-    .from('menu_items').select('*').eq('is_available', false)
+  const { data: todayOrders } = await supabase.from('orders').select('*').gte('created_at', today)
+  const { data: pendingOrders } = await supabase.from('orders').select('*').in('order_status', ['placed', 'preparing'])
+  const { data: menuItems } = await supabase.from('menu_items').select('*').eq('is_available', false)
   
   const orders = todayOrders || []
   const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0)
