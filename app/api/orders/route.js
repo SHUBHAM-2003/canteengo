@@ -5,49 +5,62 @@ export async function GET(req) {
   const supabase = await createServerSupabase()
   const { searchParams } = new URL(req.url)
   
-  let query = supabase.from('orders').select('*').order('created_at', { ascending: false })
-  
-  if (searchParams.get('status')) query = query.eq('order_status', searchParams.get('status'))
-  if (searchParams.get('payment_mode')) query = query.eq('payment_mode', searchParams.get('payment_mode'))
-  if (searchParams.get('limit')) query = query.limit(parseInt(searchParams.get('limit')))
-  
-  const { data } = await query
-  return NextResponse.json(data || [])
+  try {
+    let query = supabase.from('orders').select('*').order('created_at', { ascending: false })
+    
+    if (searchParams.get('status')) query = query.eq('order_status', searchParams.get('status'))
+    if (searchParams.get('payment_mode')) query = query.eq('payment_mode', searchParams.get('payment_mode'))
+    if (searchParams.get('limit')) query = query.limit(parseInt(searchParams.get('limit')))
+    
+    const { data, error } = await query
+    if (error) return NextResponse.json({ error: error.message, data: [] }, { status: 500 })
+    return NextResponse.json(data || [])
+  } catch (err) {
+    return NextResponse.json({ error: err.message, data: [] }, { status: 500 })
+  }
 }
 
 export async function POST(req) {
-  const supabase = await createServerSupabase()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  
-  const body = await req.json()
-  
-  const today = new Date().toISOString().split('T')[0]
-  const { data: seq } = await supabase
-    .from('daily_sequences').select('last_sequence').eq('date', today).single()
-  
-  let newSeq = 1
-  if (seq) {
-    newSeq = seq.last_sequence + 1
-    await supabase.from('daily_sequences').update({ last_sequence: newSeq }).eq('date', today)
-  } else {
-    await supabase.from('daily_sequences').insert({ date: today, last_sequence: 1 })
+  try {
+    const supabase = await createServerSupabase()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+    
+    const body = await req.json()
+    
+    const today = new Date().toISOString().split('T')[0]
+    const { data: seq } = await supabase
+      .from('daily_sequences').select('last_sequence').eq('date', today).single()
+    
+    let newSeq = 1
+    if (seq) {
+      newSeq = (seq.last_sequence || 0) + 1
+      await supabase.from('daily_sequences').update({ last_sequence: newSeq }).eq('date', today)
+    } else {
+      await supabase.from('daily_sequences').insert({ date: today, last_sequence: 1 })
+    }
+    
+    const seqStr = String(newSeq).padStart(3, '0')
+    const tableNum = body.table_number ? body.table_number.replace('Table ', '').replace('📍 ', '') : null
+    const orderNumber = tableNum ? `T${tableNum}-${seqStr}` : `WI-${seqStr}`
+    
+    const { data, error } = await supabase.from('orders').insert({
+      order_number: orderNumber,
+      table_number: body.table_number || 'Walk-in',
+      user_id: user.id,
+      items: body.items || [],
+      total_amount: body.total_amount || 0,
+      payment_mode: body.payment_mode || 'counter',
+      payment_status: body.payment_mode === 'online' ? 'paid' : 'pending',
+      order_status: 'placed'
+    }).select().single()
+    
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json(data)
+  } catch (err) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
-  
-  const seqStr = String(newSeq).padStart(3, '0')
-  const orderNumber = body.table_number ? `T${body.table_number.replace('Table ', '')}-${seqStr}` : `WI-${seqStr}`
-  
-  const { data, error } = await supabase.from('orders').insert({
-    order_number: orderNumber,
-    table_number: body.table_number || null,
-    user_id: session.user.id,
-    items: body.items,
-    total_amount: body.total_amount,
-    payment_mode: body.payment_mode,
-    payment_status: body.payment_mode === 'online' ? 'paid' : 'pending',
-    order_status: 'placed'
-  }).select().single()
-  
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
 }
