@@ -122,17 +122,50 @@ alter table daily_sequences enable row level security;
 
 -- 8. Create policies
 
+-- Public read access for all users
 create policy "Public read access" on menu_items for select using (true);
 create policy "Public read access" on categories for select using (true);
 create policy "Public read access" on banners for select using (true);
 create policy "Public read access" on tables for select using (true);
+create policy "Managers can view all orders" on orders for select using (exists (select 1 from profiles where id = auth.uid() and role = 'manager'));
 create policy "Users can view own orders" on orders for select using (auth.uid() = user_id);
-create policy "Users can insert own orders" on orders for insert with check (auth.uid() = user_id);
 
--- Note: Demo users must be created via Supabase Auth dashboard or API:
--- 1. Go to Authentication > Users > Invite user
--- 2. Create: student@demo.com / demo123
--- 3. Create: manager@demo.com / demo123
--- 4. Then run: insert into profiles (id, name, role) values 
---      ('<student-user-id>', 'Student Demo', 'student'),
---      ('<manager-user-id>', 'Manager', 'manager');
+-- Order policies
+create policy "Users can insert own orders" on orders for insert with check (auth.uid() = user_id);
+create policy "Managers can update orders" on orders for update using (exists (select 1 from profiles where id = auth.uid() and role = 'manager'));
+
+-- Menu item policies (manager only for writes)
+create policy "Managers can insert menu items" on menu_items for insert
+  with check (exists (select 1 from profiles where id = auth.uid() and role = 'manager'));
+create policy "Managers can update menu items" on menu_items for update
+  using (exists (select 1 from profiles where id = auth.uid() and role = 'manager'));
+create policy "Managers can delete menu items" on menu_items for delete
+  using (exists (select 1 from profiles where id = auth.uid() and role = 'manager'));
+
+-- Category policies (manager only)
+create policy "Managers can insert categories" on categories for insert
+  with check (exists (select 1 from profiles where id = auth.uid() and role = 'manager'));
+create policy "Managers can update categories" on categories for update
+  using (exists (select 1 from profiles where id = auth.uid() and role = 'manager'));
+
+-- Banner policies (manager only)
+create policy "Managers can insert banners" on banners for insert
+  with check (exists (select 1 from profiles where id = auth.uid() and role = 'manager'));
+create policy "Managers can update banners" on banners for update
+  using (exists (select 1 from profiles where id = auth.uid() and role = 'manager'));
+
+-- Table policies (manager only)
+create policy "Managers can insert tables" on tables for insert
+  with check (exists (select 1 from profiles where id = auth.uid() and role = 'manager'));
+create policy "Managers can update tables" on tables for update
+  using (exists (select 1 from profiles where id = auth.uid() and role = 'manager'));
+create policy "Managers can delete tables" on tables for delete
+  using (exists (select 1 from profiles where id = auth.uid() and role = 'manager'));
+
+-- Profile policies
+create policy "Users can read own profile" on profiles for select
+  using (auth.uid() = id or exists (select 1 from profiles where id = auth.uid() and role = 'manager'));
+
+-- Note: Demo users have already been created via setup script.
+-- student@demo.com -> role: student
+-- manager@demo.com -> role: manager

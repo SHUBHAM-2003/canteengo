@@ -19,10 +19,13 @@ export async function middleware(request) {
     }
   )
   
+  // Refresh session - needed for SSR auth
   await supabase.auth.getUser()
   return supabaseResponse
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|).*)', // Skip Next.js internal routes
+  ],
 }
