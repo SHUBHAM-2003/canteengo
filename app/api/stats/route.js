@@ -1,25 +1,18 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { createServerSupabase } from '@/lib/serverSupabase'
 
 export async function GET() {
-  const supabase = createRouteHandlerClient({ cookies })
+  const supabase = await createServerSupabase()
   const today = new Date().toISOString().split('T')[0]
   
   const { data: todayOrders } = await supabase
-    .from('orders')
-    .select('*')
-    .gte('created_at', today)
+    .from('orders').select('*').gte('created_at', today)
   
   const { data: pendingOrders } = await supabase
-    .from('orders')
-    .select('*')
-    .in('order_status', ['placed', 'preparing'])
+    .from('orders').select('*').in('order_status', ['placed', 'preparing'])
   
   const { data: menuItems } = await supabase
-    .from('menu_items')
-    .select('*')
-    .eq('is_available', false)
+    .from('menu_items').select('*').eq('is_available', false)
   
   const orders = todayOrders || []
   const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0)

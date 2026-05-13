@@ -1,9 +1,8 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { createServerSupabase } from '@/lib/serverSupabase'
 
 export async function GET(req) {
-  const supabase = createRouteHandlerClient({ cookies })
+  const supabase = await createServerSupabase()
   const { searchParams } = new URL(req.url)
   
   let query = supabase.from('orders').select('*').order('created_at', { ascending: false })
@@ -17,19 +16,15 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
-  const supabase = createRouteHandlerClient({ cookies })
+  const supabase = await createServerSupabase()
   const { data: { session } } = await supabase.auth.getSession()
-  
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   
   const body = await req.json()
   
   const today = new Date().toISOString().split('T')[0]
   const { data: seq } = await supabase
-    .from('daily_sequences')
-    .select('last_sequence')
-    .eq('date', today)
-    .single()
+    .from('daily_sequences').select('last_sequence').eq('date', today).single()
   
   let newSeq = 1
   if (seq) {
@@ -40,7 +35,7 @@ export async function POST(req) {
   }
   
   const seqStr = String(newSeq).padStart(3, '0')
-  const orderNumber = body.table_number ? `T${body.table_number}-${seqStr}` : `WI-${seqStr}`
+  const orderNumber = body.table_number ? `T${body.table_number.replace('Table ', '')}-${seqStr}` : `WI-${seqStr}`
   
   const { data, error } = await supabase.from('orders').insert({
     order_number: orderNumber,

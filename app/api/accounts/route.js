@@ -1,15 +1,14 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { createServerSupabase } from '@/lib/serverSupabase'
 
 export async function GET() {
-  const supabase = createRouteHandlerClient({ cookies })
+  const supabase = await createServerSupabase()
   const { data: users } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
   return NextResponse.json(users || [])
 }
 
 export async function POST(req) {
-  const supabase = createRouteHandlerClient({ cookies })
+  const supabase = await createServerSupabase()
   const body = await req.json()
   
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
