@@ -1,5 +1,8 @@
 # CanteenGo - College Canteen Ordering System
 
+**Supabase project:** jqqzxwlazhqbukysdjua  
+**Status:** Deployed — v1.0
+
 A modern ordering system built with Next.js, Supabase, and Tailwind CSS.
 
 ## Tech Stack
